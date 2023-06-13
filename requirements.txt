@@ -1,0 +1,6 @@
+webdavclient3 
+pydantic 
+pillow 
+pillow-heif 
+hachoir
+
