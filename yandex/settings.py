@@ -32,8 +32,19 @@ class DatabaseSettings(BaseSettings):
 class PoolSettings(BaseSettings):
     delete_pool_size: int = 4
     rename_pool_size: int = 4
+    convert_pool_size: int = 4
+
+
+class AppSettings(BaseSettings):
+    LENA_PHOTOS: str = "/Фотокамера (elenaartyshova)/"
+    VOVA_PHOTOS: str = "/Фотокамера/"
+    # DOWNLOADS_DIR: str = "/downloads"
+    DOWNLOADS_DIR: str = "/home/mostepan/dev/yandex-scripts/test_files"
+    PNG_TRASH: str = "/png_trash"
+    HEIC_TRASH: str = "/heic_trash"
 
 
 ya_settings = YandexSettings()
 db_settings = DatabaseSettings()
 pool_settings = PoolSettings()
+app_settings = AppSettings()

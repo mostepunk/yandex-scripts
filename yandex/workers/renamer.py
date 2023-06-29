@@ -9,7 +9,7 @@
         - загрузить его в облако
 """
 
-import pathlib as pl
+import contextlib
 import re
 from datetime import datetime
 
@@ -21,29 +21,10 @@ from pillow_heif import register_heif_opener
 
 from yandex import logger as logging
 from yandex.clients import BaseClient
+from yandex.resources import YANDEX_FILENAME
 from yandex.schemas import File
 
 register_heif_opener()
-
-
-heic = ".HEIC"
-heic_ext = r"\.(HEIC|heic)$"
-
-# 2023-01-06 19-36-07.JPG
-yandex_filename = r"\d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2}\.\w+"
-# yandex_filename = r"\d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2}\.(HEIC|JPG|heic|jpg)"
-
-# IMG_5555.heic
-iphone_filename = r"IMG_\d+\.\w+"
-# iphone_filename = r"IMG_\d+\.(HEIC|heic)"
-
-# 20230106_193257.HEIC
-nextcloud_filename = r"\d{8}_\d{6}\.\w+"
-# 20230106_193257
-nextcloud_date = r"\d{8}_\d{6}"
-# nextcloud_filename = r"\d{8}_\d{6}\.(HEIC|JPG|heic|jpg)"
-log_file = r"\d{4}-\d{2}-\d{2}.log"
-
 
 # TODO: привести этот код к порядку и сделать его в ООП
 
@@ -54,9 +35,9 @@ class Renamer:
         self.file = file
 
     def rename(self):
-        if re.search(yandex_filename, self.file.name):
+        if re.search(YANDEX_FILENAME, self.file.name):
             return self.rename_yandex(self.file.name)
-        return self.rename_file(self.file)
+        return self.download_and_rename()
 
     def update_file(self, new_filename: str):
         try:
@@ -73,56 +54,54 @@ class Renamer:
         """
         return old_name.replace(" ", "_").replace("-", "")
 
-    def extract_exif(self):
+    def extract_exif(self, file_path: str) -> dict:
         """Извлечь метадату из файла фотографии."""
         try:
-            img = PIL.Image.open(self.file.path)
+            img = PIL.Image.open(file_path)
             return img.getexif()
         except UnidentifiedImageError:
-            parser = createParser(self.file.path)
+            parser = createParser(file_path)
             metadata = extractMetadata(parser)
             if metadata is None:
                 return None
             meta = metadata.exportDictionary()
-            try:
+
+            with contextlib.suppress(ValueError):
                 meta[306] = metadata.get("creation_date").strftime("%Y:%m:%d %H:%M:%S")
-            except ValueError:
-                pass
             return meta
 
-    def generate_filename(self):
+    def generate_filename(self, file_path: str):
         """Сгенерировать новое имя файла."""
-        logging.info(f"=== {self.file.name}:")
-        exif_data = self.extract_exif()
+        exif_data = self.extract_exif(file_path)
 
         if not exif_data:
-            logging.info(f"--> WARN: {self.file.name} No exif data")
-            return self.file.name
+            logging.warning(f"{file_path} No exif data")
+            return file_path
 
-        logging.info(f"{self.file.name} Exif Data: {exif_data}")
+        logging.info(f"{file_path} Exif Data: {exif_data}")
 
         try:
             # 2023:01:06 19:32:57
             date = datetime.strptime(exif_data[306], "%Y:%m:%d %H:%M:%S")
             logging.info(f"Found date: {date}")
-            return date.strftime("%Y%m%d_%H%M%S") + self.file.suffix
+            return date.strftime("%Y%m%d_%H%M%S")
         except KeyError:
             logging.warning(f"--> ERROR: Exif data is strange. return {self.file.name}")
             return self.file.name
 
-    def rename_file(self):
+    def download_and_rename(self):
         """Переименовать файл исходя из даты съемки.
 
         Она как правило лежит в exif данных под ключом 306,
         По крайней мере так они мне попадались.
         """
-        downloaded_file = self.dav.download(self.file)
-        target = pl.Path(file.parent / generate_filename(file))
-        ff = self.generate_filename(downloaded_file)
+        downloaded_file_path = self.dav.download_file(self.file)
+        new_file_name = self.generate_filename(downloaded_file_path)
+        logging.info(f"New name for file {self.file.name}: {new_file_name}")
+        return new_file_name
 
 
 def rename_worker(file: File, dav: BaseClient):
-    logging.info(f"Rename {file.name} -> ")
     r = Renamer(dav, file)
     new_filename = r.rename()
     return r.update_file(new_filename)

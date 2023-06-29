@@ -1,4 +1,4 @@
-from yandex.resources import CONVERT, DELETE, RENAME, RENAME_DELETE
+from yandex.resources import CONVERT, DELETE, RENAME, RENAME_CONVERT
 from yandex.schemas import File
 from yandex.settings import db_settings
 
@@ -28,7 +28,7 @@ class Database:
 
     @property
     def rename_convert_tasks(self):
-        return [row for row in self._tasks if row[1] == RENAME_DELETE]
+        return [row for row in self._tasks if row[1] == RENAME_CONVERT]
 
     @property
     def delete_tasks(self):

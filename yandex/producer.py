@@ -8,7 +8,7 @@ import re
 from yandex import logger as logging
 from yandex.clients import BaseClient
 from yandex.resources import (CONVERT, DELETE, HEIC_EXT, NEXTCLOUD_FILENAME,
-                              PNG_EXT, RENAME, RENAME_DELETE)
+                              PNG_EXT, RENAME, RENAME_CONVERT)
 from yandex.schemas import File
 
 
@@ -46,7 +46,7 @@ class Producer:
 
     def rename_and_convert(self, file: File):
         logging.info(f"Rename and convert: {file.name}")
-        self.save_to_db(file, RENAME_DELETE)
+        self.save_to_db(file, RENAME_CONVERT)
 
     def rename(self, file: File):
         """rename.
